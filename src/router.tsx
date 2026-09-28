@@ -1,6 +1,7 @@
 import { createRootRoute, createRoute, createRouter, Outlet } from '@tanstack/react-router';
 import RiskQueue from '@/components/fraud/RiskQueue';
 import PolicySearch from '@/components/fraud/PolicySearch';
+import RuleCatalog from '@/components/fraud/RuleCatalog';
 import AdminView from '@/components/fraud/AdminView';
 import CaseDetail from '@/components/fraud/CaseDetail';
 import { Shell } from '@/components/fraud/shared';
@@ -29,6 +30,12 @@ function PolicyPage() {
   return <Shell><PolicySearch initialSearch={search ?? ''} /></Shell>;
 }
 
+const rulesRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/rules',
+  component: () => <Shell><RuleCatalog /></Shell>,
+});
+
 const adminRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/admin',
@@ -46,7 +53,7 @@ function CasePage() {
   return <Shell><CaseDetail key={claimId} claimId={claimId} /></Shell>;
 }
 
-const routeTree = rootRoute.addChildren([indexRoute, policyRoute, adminRoute, caseRoute]);
+const routeTree = rootRoute.addChildren([indexRoute, policyRoute, rulesRoute, adminRoute, caseRoute]);
 
 export const router = createRouter({
   routeTree,
