@@ -11,8 +11,9 @@ function PolicyLinks({ rule }: { rule: InvestigationRule }) {
   return <div className="flex flex-wrap gap-1.5">
     {rule.policy_ids.map(id => {
       const policy = getPolicySection(id);
+      const version = policy?.document?.version;
       return <Link key={id} to="/policy" search={{ search: id }} className="rounded border border-slate-300 bg-white px-2 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-50 hover:underline">
-        {id}{policy ? ` · ${policy.section}` : ''}
+        {id}{policy ? ` · ${policy.section}` : ''}{version ? ` · v${version}` : ''}
       </Link>;
     })}
   </div>;
