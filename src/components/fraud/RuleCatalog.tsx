@@ -1,17 +1,19 @@
 import { Link } from '@tanstack/react-router';
 import { FileCheck2, ShieldAlert, Workflow } from 'lucide-react';
-import rulesData from '@/data/rules.json';
-import policiesData from '@/data/policy_snippets.json';
+import { getRuleCatalog } from '@/domain/rules/ruleEngine';
+import type { InvestigationRule } from '@/domain/rules/ruleTypes';
+import { getPolicySection } from '@/domain/policy/policyService';
 import { PageHeader, signalLabel } from './shared';
 
-type Rule = (typeof rulesData)[number];
+const rules = getRuleCatalog();
 
-function PolicyLinks({ rule }: { rule: Rule }) {
+function PolicyLinks({ rule }: { rule: InvestigationRule }) {
   return <div className="flex flex-wrap gap-1.5">
     {rule.policy_ids.map(id => {
-      const policy = policiesData.find(p => p.snippet_id === id);
+      const policy = getPolicySection(id);
+      const version = policy?.document?.version;
       return <Link key={id} to="/policy" search={{ search: id }} className="rounded border border-slate-300 bg-white px-2 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-50 hover:underline">
-        {id}{policy ? ` · ${policy.section}` : ''}
+        {id}{policy ? ` · ${policy.section}` : ''}{version ? ` · v${version}` : ''}
       </Link>;
     })}
   </div>;
@@ -32,7 +34,7 @@ export default function RuleCatalog() {
     </div>
 
     <div className="space-y-3">
-      {rulesData.map(rule => <article key={rule.rule_id} id={rule.rule_id} className="card overflow-hidden">
+      {rules.map(rule => <article key={rule.rule_id} id={rule.rule_id} className="card overflow-hidden">
         <div className="grid gap-3 border-b border-slate-100 bg-slate-50 px-4 py-3 lg:grid-cols-[150px_1fr_auto] lg:items-start">
           <div>
             <div className="label">Rule ID</div>

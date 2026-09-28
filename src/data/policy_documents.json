@@ -1,0 +1,28 @@
+[
+  {
+    "document_id": "DOC-UI-MANUAL",
+    "title": "State UI Policy Manual",
+    "version": "2026.1",
+    "jurisdiction": "Demo State",
+    "effective_date": "2026-01-01",
+    "expiration_date": null,
+    "status": "Active",
+    "authority": "State UI Program",
+    "source_type": "Synthetic demo corpus",
+    "source_uri": null,
+    "ingested_at": "2026-09-28"
+  },
+  {
+    "document_id": "DOC-INV-FIELD-GUIDE",
+    "title": "Investigator Field Guide",
+    "version": "2026.1",
+    "jurisdiction": "Demo State",
+    "effective_date": "2026-01-01",
+    "expiration_date": null,
+    "status": "Active",
+    "authority": "Program Integrity",
+    "source_type": "Synthetic demo corpus",
+    "source_uri": null,
+    "ingested_at": "2026-09-28"
+  }
+]

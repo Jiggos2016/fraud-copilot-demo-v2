@@ -1,11 +1,14 @@
 import { FormEvent, useEffect, useState } from 'react';
 import { Link } from '@tanstack/react-router';
-import { AlertTriangle, ArrowLeft, Bot, CheckCircle2, ClipboardList, FileText, History, Lock, Scale, Sparkles, User, Briefcase } from 'lucide-react';
+import { AlertTriangle, ArrowLeft, Bot, CheckCircle2, ClipboardList, FileText, History, Lock, Scale, Sparkles, User, Briefcase, Workflow } from 'lucide-react';
 import {
-  AuditEntry, Citation, CitationChip, EvidenceState, Panel, RiskScore,
+  Citation, CitationChip, EvidenceState, Panel, RiskScore,
   cases, claimants, claims, effectiveStatus, employers, investigators, money, recordDisposition, sessionDispositions,
-  scripts, signalExplanation, signalLabel, splitSignals, stamp,
+  signalExplanation, signalLabel, splitSignals, stamp,
 } from './shared';
+import { answerCopilotQuestion } from '@/ai/copilot/copilotService';
+import { createCopilotAuditEntries, type AuditEntry } from '@/audit/auditService';
+import { buildTraceability } from '@/domain/evidence/traceability';
 
 const SUGGESTED: { label: string; intent: string }[] = [
   { label: 'Why was this claim prioritized?', intent: 'why prioritized' },
@@ -25,7 +28,7 @@ export default function CaseDetail({ claimId }: { claimId: string }) {
   const caseItem = cases.find(c => c.claim_id === claimId);
   const investigator = investigators.find(i => i.investigator_id === caseItem?.assigned_investigator);
   const [query, setQuery] = useState('');
-  const [chat, setChat] = useState<{ q: string; a: string; citations: Citation[] }[]>([]);
+  const [chat, setChat] = useState<{ q: string; a: string; citations: Citation[]; provider: string }[]>([]);
   const [audit, setAudit] = useState<AuditEntry[]>(() => caseItem ? [{ at: caseItem.opened_date, action: 'Case opened', detail: caseItem.notes_summary }] : []);
   const initialMemo = claim ? `Claim ${claim.claim_id} was prioritized for review based on ${splitSignals(claim.top_signals).map(signalLabel).join(', ').toLowerCase() || 'no active automated risk signals'}. Current evidence should be corroborated before disposition. Recommend review of available network, identity, employer, related-claim, and policy evidence before submitting a determination.` : '';
   const [memo, setMemo] = useState(initialMemo);
@@ -44,33 +47,42 @@ export default function CaseDetail({ claimId }: { claimId: string }) {
   const relatedByIp = claimants.filter(c => c.filing_ip === claimant.filing_ip && c.claimant_id !== claimant.claimant_id).map(c => c.claimant_id);
   const relatedByDevice = claimants.filter(c => c.device_fingerprint === claimant.device_fingerprint && c.claimant_id !== claimant.claimant_id).map(c => c.claimant_id);
   const signals = splitSignals(claim.top_signals);
+  const traceability = buildTraceability(signals);
   const evidence: [string, string, string][] = [
     ['Network / IP', signals.some(s => s.includes('ip')) ? 'Available' : 'Pending', claimant.filing_ip],
     ['Identity', signals.includes('cross_country_ip_mismatch') || signals.includes('blocklisted_ip_range') ? 'Pending' : 'Available', `Device ${claimant.device_fingerprint}`],
     ['Employer Verification', caseItem?.notes_summary.toLowerCase().includes('awaiting employer') ? 'Pending' : 'Available', employer.name],
     ['Payment', 'Not Available', 'Not included in demo dataset'],
     ['Related Claims', relatedByIp.length || relatedByDevice.length ? 'Available' : 'Not Available', [...new Set([...relatedByIp, ...relatedByDevice])].join(', ') || 'No direct link'],
-    ['Policy', 'Available', 'Grounded local policy corpus'],
+    ['Policy', 'Available', 'Versioned local policy corpus'],
   ];
 
-  const runQuery = (raw: string, intent?: string) => {
+  const runQuery = async (raw: string, intent?: string) => {
     const q = raw.trim();
     if (!q) return;
-    const list = scripts[claimId] || [];
-    const hit = intent
-      ? list.find(s => s.match === intent)
-      : list.find(s => q.toLowerCase().includes(s.match.toLowerCase()) || s.match.toLowerCase().includes(q.toLowerCase()));
-    const result = hit || { answer: 'No grounded answer found for this query.', citations: [] as Citation[] };
-    setChat(c => [...c, { q, a: result.answer, citations: result.citations }]);
-    const t = stamp();
-    setAudit(a => [...a,
-      { at: t, action: 'Copilot question', detail: q },
-      { at: t, action: 'Citation returned', detail: result.citations.map(c => c.id).join(', ') || 'No citation returned' },
-    ]);
+
+    const result = await answerCopilotQuestion({
+      claimId,
+      signals,
+      question: q,
+      intent,
+      asOfDate: claim.filed_date,
+    });
+
+    setChat(c => [...c, { q, a: result.answer, citations: result.citations as Citation[], provider: result.provider }]);
+    setAudit(a => [...a, ...createCopilotAuditEntries({
+      question: q,
+      citations: result.citations.map(c => c.id),
+      provider: result.provider,
+      model: result.model,
+      promptVersion: result.promptVersion,
+      retrievedPolicyIds: result.retrievedPolicyIds,
+      retrievedCaseIds: result.retrievedCaseIds,
+    })]);
     setQuery('');
   };
 
-  const ask = (e: FormEvent) => { e.preventDefault(); runQuery(query); };
+  const ask = (e: FormEvent) => { e.preventDefault(); void runQuery(query); };
   const editMemo = (v: string) => {
     setMemo(v);
     if (!memoEdited) {
@@ -127,6 +139,18 @@ export default function CaseDetail({ claimId }: { claimId: string }) {
           <div className="mt-2 text-[11px] text-slate-500">Corroboration required before any determination.</div>
         </Panel>
 
+        <Panel title="Triggered Rules & Traceability" subtitle="Signal → Rule → Policy → Evidence" icon={<Workflow size={15}/>} right={<span className="mono text-xs text-slate-500">{traceability.length}</span>}>
+          {traceability.length ? <div className="space-y-3">{traceability.map(record => <div key={`${record.ruleId}-${record.signal}`} className="rounded border border-slate-200 bg-slate-50 p-3">
+            <div className="flex flex-wrap items-center gap-1.5 text-xs font-semibold text-slate-800">
+              <span>{signalLabel(record.signal)}</span><span className="text-slate-400">→</span>
+              <a href={`/rules#${record.ruleId}`} className="mono underline underline-offset-2">{record.ruleId}</a><span className="text-slate-400">→</span>
+              {record.policyIds.map((id, index) => <Link key={id} to="/policy" search={{ search: id }} className="rounded border border-slate-300 bg-white px-1.5 py-0.5 underline-offset-2 hover:underline">{record.policySections[index]}</Link>)}
+            </div>
+            <div className="mt-2"><div className="label mb-1">Evidence required</div><div className="text-xs leading-5 text-slate-600">{record.requiredEvidence.join(' · ')}</div></div>
+            <div className="mt-2 text-[11px] leading-5 text-red-800"><strong>Boundary:</strong> {record.prohibitedAction}</div>
+          </div>)}</div> : <div className="text-sm text-slate-500">No operational rule is triggered by the current signal set.</div>}
+        </Panel>
+
         <Panel title="Evidence" subtitle="Availability only — not a verdict" icon={<FileText size={15}/>}>
           <table className="w-full text-sm"><tbody className="divide-y divide-slate-100">{evidence.map(([name,state,detail]) => <tr key={name}><td className="py-1.5 pr-3 font-medium">{name}</td><td className="mono py-1.5 pr-3 text-xs text-slate-500">{detail}</td><td className="py-1.5 text-right"><EvidenceState state={state}/></td></tr>)}</tbody></table>
         </Panel>
@@ -145,13 +169,13 @@ export default function CaseDetail({ claimId }: { claimId: string }) {
 
       <div className="space-y-3">
         <Panel tone="ai" title="Fraud Copilot" icon={<Bot size={15}/>} right={<span className="inline-flex items-center gap-1 rounded border border-violet-200 bg-white px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-violet-700"><Sparkles size={10}/>Grounded Copilot</span>}>
-          <div className="mb-2.5 flex flex-wrap gap-1.5">{SUGGESTED.filter(s => (scripts[claimId] || []).some(x => x.match === s.intent)).map(s => <button key={s.intent} className="rounded-full border border-violet-200 bg-violet-50 px-2.5 py-1 text-xs font-medium text-violet-800 hover:border-violet-300 hover:bg-violet-100" onClick={() => runQuery(s.label, s.intent)}>{s.label}</button>)}</div>
+          <div className="mb-2.5 flex flex-wrap gap-1.5">{SUGGESTED.map(s => <button key={s.intent} className="rounded-full border border-violet-200 bg-violet-50 px-2.5 py-1 text-xs font-medium text-violet-800 hover:border-violet-300 hover:bg-violet-100" onClick={() => void runQuery(s.label, s.intent)}>{s.label}</button>)}</div>
           <div className="max-h-[460px] space-y-3 overflow-y-auto pr-1">
-            {chat.length === 0 && <div className="rounded border border-dashed border-violet-200 p-4 text-center text-xs text-slate-500">Answers are scripted and grounded in case or policy sources. Every answer shows its citations.</div>}
+            {chat.length === 0 && <div className="rounded border border-dashed border-violet-200 p-4 text-center text-xs text-slate-500">Answers are grounded in case, rule, and policy context. Every substantive answer must include citations.</div>}
             {chat.map((m,i) => <div key={i} className="space-y-1.5">
               <div className="ml-auto w-fit max-w-[90%] rounded bg-slate-900 px-3 py-2 text-sm text-white">{m.q}</div>
               <div className="max-w-[96%] rounded border border-violet-200 border-l-4 border-l-violet-500 bg-violet-50/50 p-3">
-                <div className="mb-1 flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-violet-700"><Sparkles size={11}/>AI-assisted · grounded answer</div>
+                <div className="mb-1 flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-violet-700"><Sparkles size={11}/>AI-assisted · grounded answer · {m.provider}</div>
                 <div className="text-sm leading-6 text-slate-800">{m.a}</div>
                 {m.citations.length > 0 && <div className="mt-2 border-t border-violet-100 pt-2"><div className="label mb-1">Citations</div><div className="flex flex-wrap gap-1.5">{m.citations.map(c => <CitationChip key={`${c.type}-${c.id}`} citation={c}/>)}</div></div>}
               </div>
