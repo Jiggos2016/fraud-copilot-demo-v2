@@ -3,7 +3,7 @@ import RiskQueue from '@/components/fraud/RiskQueue';
 import PolicySearch from '@/components/fraud/PolicySearch';
 import RuleCatalog from '@/components/fraud/RuleCatalog';
 import AdminView from '@/components/fraud/AdminView';
-import CaseDetail from '@/components/fraud/CaseDetail';
+import CaseWorkspace from '@/components/fraud/CaseWorkspace';
 import { Shell } from '@/components/fraud/shared';
 
 const rootRoute = createRootRoute({
@@ -50,7 +50,7 @@ const caseRoute = createRoute({
 
 function CasePage() {
   const { claimId } = caseRoute.useParams();
-  return <Shell><CaseDetail key={claimId} claimId={claimId} /></Shell>;
+  return <Shell><CaseWorkspace key={claimId} claimId={claimId} /></Shell>;
 }
 
 const routeTree = rootRoute.addChildren([indexRoute, policyRoute, rulesRoute, adminRoute, caseRoute]);
