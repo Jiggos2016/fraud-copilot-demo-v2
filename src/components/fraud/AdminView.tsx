@@ -19,11 +19,11 @@ export default function AdminView() {
 
     <div className="mb-4 flex items-start gap-2.5 rounded-xl border border-blue-200 bg-blue-50/70 px-4 py-3 text-sm leading-6 text-blue-950">
       <ShieldAlert size={17} className="mt-0.5 shrink-0 text-blue-700"/>
-      <span><strong>Automated scores prioritize investigation workload and do not determine fraud.</strong> Thresholds affect queue ordering and presentation only; they never determine eligibility or trigger a disposition.</span>
+      <span><strong>Automated scores prioritize investigation workload and do not represent probability of fraud.</strong> The production contract combines supervised classification and anomaly detection; this static MVP exposes precomputed synthetic inference through that contract. Thresholds never determine eligibility or trigger a disposition.</span>
     </div>
 
     <div className="grid gap-3 md:grid-cols-3">
-      <Metric title="Risk model version" value="demo-v1" note="Static synthetic scores used for workflow demonstration"/>
+      <Metric title="Risk model version" value="demo-ensemble-v1" note="Gradient-boosted + anomaly-detection contract; precomputed synthetic inference"/>
       <Metric title="Precision" value="—" note="No production model evaluation has been executed"/>
       <Metric title="Recall" value="—" note="No production model evaluation has been executed"/>
     </div>
