@@ -1,5 +1,6 @@
 import { Lock, ShieldAlert } from 'lucide-react';
 import { Metric, PageHeader } from './shared';
+import PolicyKnowledgeManager from './PolicyKnowledgeManager';
 
 const thresholds: [string, string, string][] = [
   ['Low', '0 – 39', 'bg-emerald-500'],
@@ -9,8 +10,8 @@ const thresholds: [string, string, string][] = [
 
 export default function AdminView() {
   return <div>
-    <PageHeader eyebrow="Configuration" title="Demo Administration" description="Read-only MVP metadata. Thresholds and metrics are placeholders for UX demonstration."
-      right={<span className="inline-flex items-center gap-1.5 rounded border border-slate-300 bg-white px-2 py-1 text-xs font-medium text-slate-600"><Lock size={12}/>Read-only</span>} />
+    <PageHeader eyebrow="Configuration" title="Demo Administration" description="Governance controls for the synthetic Fraud Copilot MVP. Risk settings remain read-only; policy knowledge can be tested in browser-session mode."
+      right={<span className="inline-flex items-center gap-1.5 rounded border border-slate-300 bg-white px-2 py-1 text-xs font-medium text-slate-600"><Lock size={12}/>MVP controls</span>} />
     <div className="mb-3 flex items-start gap-2 rounded-md border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-800">
       <ShieldAlert size={16} className="mt-0.5 shrink-0 text-slate-600"/>
       <span><strong>Automated scores prioritize investigation workload and do not determine fraud.</strong> Thresholds only change work-queue presentation; they never determine eligibility or trigger a disposition.</span>
@@ -26,5 +27,6 @@ export default function AdminView() {
         <tbody className="divide-y divide-slate-100">{thresholds.map(([b, r, c]) => <tr key={b}><td className="px-3.5 py-2"><span className="inline-flex items-center gap-2 font-semibold"><span className={`h-2 w-2 rounded-full ${c}`}/>{b}</span></td><td className="mono px-3.5 py-2 text-xs">{r}</td><td className="px-3.5 py-2 text-slate-600">Queue ordering and display only</td></tr>)}</tbody>
       </table>
     </div>
+    <PolicyKnowledgeManager />
   </div>;
 }
