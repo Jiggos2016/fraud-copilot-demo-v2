@@ -9,7 +9,23 @@ export type CaseRetrievalResult = {
   notes: string;
   matchedSignals: string[];
   score: number;
+  scope: 'current-case' | 'expanded-closed-cases';
 };
+
+export function retrieveCurrentCaseKnowledge(claimId: string): CaseRetrievalResult[] {
+  const caseItem = casesData.find(item => item.claim_id === claimId);
+  if (!caseItem) return [];
+  const claim = claimsData.find(item => item.claim_id === claimId);
+  return [{
+    caseId: caseItem.case_id,
+    claimId,
+    disposition: caseItem.disposition,
+    notes: caseItem.notes_summary,
+    matchedSignals: claim ? parseSignalString(claim.top_signals) : [],
+    score: 100,
+    scope: 'current-case',
+  }];
+}
 
 export function retrieveSimilarClosedCases(claimId: string, signals: string[], limit = 3): CaseRetrievalResult[] {
   const signalSet = new Set(signals);
@@ -27,6 +43,7 @@ export function retrieveSimilarClosedCases(claimId: string, signals: string[], l
         notes: caseItem.notes_summary,
         matchedSignals,
         score: matchedSignals.length * 3,
+        scope: 'expanded-closed-cases' as const,
       };
     })
     .filter(result => result.score > 0)
