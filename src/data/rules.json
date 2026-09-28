@@ -1,0 +1,93 @@
+[
+  {
+    "rule_id": "FR-101",
+    "name": "Shared infrastructure across claimants",
+    "description": "Flags a claim when the same filing IP is associated with multiple claimants. Shared infrastructure is an investigative lead only and requires independent corroboration.",
+    "trigger_signals": ["same_ip_multi_claimant"],
+    "trigger_logic": "Trigger when the filing IP appears on two or more claimant records.",
+    "policy_ids": ["POL-3", "POL-7"],
+    "evidence_required": ["Network/IP context", "Independent corroborating evidence", "Employer or identity verification when applicable"],
+    "system_action": "Increase investigation priority and surface related claims for review.",
+    "prohibited_action": "Must not automatically determine fraud, suspend benefits, or submit a disposition.",
+    "owner": "Program Integrity",
+    "status": "Active"
+  },
+  {
+    "rule_id": "FR-102",
+    "name": "Device fingerprint reuse",
+    "description": "Flags reuse of the same device fingerprint across claimant records. Household or shared-device scenarios may be legitimate and must be corroborated.",
+    "trigger_signals": ["device_fingerprint_reuse"],
+    "trigger_logic": "Trigger when one device fingerprint is associated with more than one claimant.",
+    "policy_ids": ["POL-3"],
+    "evidence_required": ["Device linkage", "Claimant relationship context", "Independent corroborating evidence"],
+    "system_action": "Increase investigation priority and surface related claimant records.",
+    "prohibited_action": "Must not treat device reuse as standalone proof of fraud.",
+    "owner": "Program Integrity",
+    "status": "Active"
+  },
+  {
+    "rule_id": "FR-103",
+    "name": "Filing geography mismatch",
+    "description": "Flags material differences between claimant residence and filing network geography, including cross-state or cross-country mismatches.",
+    "trigger_signals": ["cross_state_ip_mismatch", "cross_country_ip_mismatch"],
+    "trigger_logic": "Trigger when filing IP geography materially differs from the claimant residence location.",
+    "policy_ids": ["POL-5", "POL-7"],
+    "evidence_required": ["Network/IP evidence", "Residence verification", "Travel, VPN, relocation, or authorized-assistance context"],
+    "system_action": "Prioritize network-context review and surface interstate policy guidance when relevant.",
+    "prohibited_action": "Must not infer fraud solely from IP geolocation.",
+    "owner": "Program Integrity",
+    "status": "Active"
+  },
+  {
+    "rule_id": "FR-104",
+    "name": "Higher-risk network range",
+    "description": "Flags a filing network that is identified in the demo data as a higher-risk range. This remains a lead requiring independent evidence.",
+    "trigger_signals": ["blocklisted_ip_range"],
+    "trigger_logic": "Trigger when the filing IP falls within a configured higher-risk network range.",
+    "policy_ids": ["POL-2", "POL-7"],
+    "evidence_required": ["Identity verification", "Network/IP context", "Independent claimant evidence"],
+    "system_action": "Prioritize identity and network verification.",
+    "prohibited_action": "Must not automatically block, deny, or dispose a claim.",
+    "owner": "Program Integrity",
+    "status": "Active"
+  },
+  {
+    "rule_id": "FR-105",
+    "name": "Sequential IP cluster",
+    "description": "Flags claims associated with sequential or closely related filing IPs that may indicate coordinated activity.",
+    "trigger_signals": ["sequential_ip_cluster"],
+    "trigger_logic": "Trigger when related claims use filing IPs in a configured sequential cluster.",
+    "policy_ids": ["POL-7", "POL-8"],
+    "evidence_required": ["Related-claim evidence", "Network/IP evidence", "Prior-case comparison when available"],
+    "system_action": "Surface related claims and relevant closed-case precedent for investigator review.",
+    "prohibited_action": "Prior-case similarity must not substitute for evidence in the current claim.",
+    "owner": "Program Integrity",
+    "status": "Active"
+  },
+  {
+    "rule_id": "FR-106",
+    "name": "Undeclared wage match",
+    "description": "Flags wage evidence that overlaps a period in which benefits were claimed and the earnings may not have been reported.",
+    "trigger_signals": ["undeclared_wage_match"],
+    "trigger_logic": "Trigger when wage records overlap claimed certification weeks and indicate potentially unreported earnings.",
+    "policy_ids": ["POL-1"],
+    "evidence_required": ["Wage record", "Claim certification", "Claimant response", "Employer verification when needed"],
+    "system_action": "Prioritize earnings reconciliation and display the reporting-earnings policy.",
+    "prohibited_action": "Must not issue an overpayment or fraud determination without human review of the evidence.",
+    "owner": "Program Integrity",
+    "status": "Active"
+  },
+  {
+    "rule_id": "FR-107",
+    "name": "New-hire registry timing signal",
+    "description": "Flags a timing relationship between a claim and new-hire registry information that may require employment-date verification.",
+    "trigger_signals": ["new_hire_registry_lag"],
+    "trigger_logic": "Trigger when a new-hire registry event falls within a configured review window around claimed weeks.",
+    "policy_ids": ["POL-1"],
+    "evidence_required": ["New-hire record", "Employer-confirmed start date", "Claim certification"],
+    "system_action": "Surface employment-date verification as the next investigative step.",
+    "prohibited_action": "Must not assume the registry date is the actual first day worked.",
+    "owner": "Program Integrity",
+    "status": "Active"
+  }
+]

@@ -1,8 +1,9 @@
 import { createRootRoute, createRoute, createRouter, Outlet } from '@tanstack/react-router';
 import RiskQueue from '@/components/fraud/RiskQueue';
 import PolicySearch from '@/components/fraud/PolicySearch';
+import RuleCatalog from '@/components/fraud/RuleCatalog';
 import AdminView from '@/components/fraud/AdminView';
-import CaseDetail from '@/components/fraud/CaseDetail';
+import CaseWorkspace from '@/components/fraud/CaseWorkspace';
 import { Shell } from '@/components/fraud/shared';
 
 const rootRoute = createRootRoute({
@@ -29,6 +30,12 @@ function PolicyPage() {
   return <Shell><PolicySearch initialSearch={search ?? ''} /></Shell>;
 }
 
+const rulesRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/rules',
+  component: () => <Shell><RuleCatalog /></Shell>,
+});
+
 const adminRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/admin',
@@ -43,10 +50,10 @@ const caseRoute = createRoute({
 
 function CasePage() {
   const { claimId } = caseRoute.useParams();
-  return <Shell><CaseDetail key={claimId} claimId={claimId} /></Shell>;
+  return <Shell><CaseWorkspace key={claimId} claimId={claimId} /></Shell>;
 }
 
-const routeTree = rootRoute.addChildren([indexRoute, policyRoute, adminRoute, caseRoute]);
+const routeTree = rootRoute.addChildren([indexRoute, policyRoute, rulesRoute, adminRoute, caseRoute]);
 
 export const router = createRouter({
   routeTree,
