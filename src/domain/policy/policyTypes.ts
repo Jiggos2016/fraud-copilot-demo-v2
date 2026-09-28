@@ -14,6 +14,7 @@ export type PolicyDocument = {
 
 export type PolicySection = {
   snippet_id: string;
+  document_id?: string;
   source_doc: string;
   section: string;
   text: string;

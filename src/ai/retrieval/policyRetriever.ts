@@ -17,7 +17,6 @@ const tokenize = (text: string) =>
 export function retrievePolicies(query: string, context: PolicyRetrievalContext = {}): PolicyRetrievalResult[] {
   const queryTokens = tokenize(query);
   const policyContext: PolicyQueryContext = {
-    ...(context.policyIds ? { policyIds: context.policyIds } : {}),
     ...(context.asOfDate ? { asOfDate: context.asOfDate } : {}),
     ...(context.jurisdiction ? { jurisdiction: context.jurisdiction } : {}),
   };

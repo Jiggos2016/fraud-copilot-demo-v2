@@ -3,14 +3,13 @@ import { FileText, Search } from 'lucide-react';
 import { listPolicySections } from '@/domain/policy/policyService';
 import { PageHeader } from './shared';
 
-const policies = listPolicySections();
-
 export default function PolicySearch({ initialSearch }: { initialSearch: string }) {
   const [q, setQ] = useState(initialSearch);
   useEffect(() => { setQ(initialSearch); }, [initialSearch]);
+  const policies = listPolicySections();
   const results = policies.filter(p => !q.trim() || `${p.snippet_id} ${p.section} ${p.text} ${p.source_doc} ${p.document?.version ?? ''}`.toLowerCase().includes(q.toLowerCase()));
   return <div>
-    <PageHeader eyebrow="Policy research" title="Policy Search" description="Search the versioned synthetic policy corpus. Each result retains source document, section, version, jurisdiction, and effective-date attribution." />
+    <PageHeader eyebrow="Policy research" title="Policy Search" description="Search active versioned policy sources, including browser-session policy uploads. Each result retains source, section, version, jurisdiction, and effective-date attribution." />
     <div className="card mb-3 flex items-center gap-3 p-2.5">
       <div className="relative flex-1"><Search className="absolute left-2.5 top-2 text-slate-400" size={16}/><input autoFocus className="input pl-8" value={q} onChange={e=>setQ(e.target.value)} placeholder="Search by keyword or ID — shared IP, earnings, appeal, POL-3…"/></div>
       <div className="mono whitespace-nowrap text-xs text-slate-500">{results.length} result{results.length === 1 ? '' : 's'}</div>
@@ -25,7 +24,7 @@ export default function PolicySearch({ initialSearch }: { initialSearch: string 
         </div>
         <div className="px-3.5 py-3"><div className="label mb-1">Snippet</div><blockquote className="border-l-2 border-slate-300 pl-3 text-sm leading-6 text-slate-800">{p.text}</blockquote></div>
       </article>)}
-      {!results.length && <div className="card p-6 text-center text-sm text-slate-500">No policy snippet matched this keyword search.</div>}
+      {!results.length && <div className="card p-6 text-center text-sm text-slate-500">No active policy section matched this keyword search.</div>}
     </div>
   </div>;
 }

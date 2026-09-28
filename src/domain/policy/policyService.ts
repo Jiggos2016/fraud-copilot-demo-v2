@@ -1,25 +1,36 @@
 import policyDocumentsData from '@/data/policy_documents.json';
 import policySectionsData from '@/data/policy_snippets.json';
+import { listManagedPolicyDocuments, listManagedPolicySections } from './policyKnowledgeStore';
 import type { PolicyDocument, PolicyQueryContext, PolicySection } from './policyTypes';
 
-const documents = policyDocumentsData as PolicyDocument[];
-const sections = policySectionsData as PolicySection[];
-
-const documentByTitle = new Map(documents.map(document => [document.title, document]));
+const staticDocuments = policyDocumentsData as PolicyDocument[];
+const staticSections = policySectionsData as PolicySection[];
 
 const isEffectiveOn = (document: PolicyDocument, asOfDate?: string) => {
   if (!asOfDate) return document.status === 'Active';
   const afterStart = document.effective_date <= asOfDate;
   const beforeEnd = !document.expiration_date || asOfDate <= document.expiration_date;
-  return afterStart && beforeEnd;
+  return afterStart && beforeEnd && document.status === 'Active';
 };
 
-export const listPolicyDocuments = () => documents;
+export const listPolicyDocuments = (): PolicyDocument[] => [
+  ...staticDocuments,
+  ...listManagedPolicyDocuments(),
+];
 
-export const listPolicySections = (): PolicySection[] => sections.map(section => {
-  const document = documentByTitle.get(section.source_doc);
-  return document ? { ...section, document } : { ...section };
-});
+export const listPolicySections = (): PolicySection[] => {
+  const documents = listPolicyDocuments();
+  const documentById = new Map(documents.map(document => [document.document_id, document]));
+  const documentByTitle = new Map(documents.map(document => [document.title, document]));
+  const sections: PolicySection[] = [...staticSections, ...listManagedPolicySections()];
+
+  return sections.map(section => {
+    const document = section.document_id
+      ? documentById.get(section.document_id)
+      : documentByTitle.get(section.source_doc);
+    return document ? { ...section, document } : { ...section };
+  });
+};
 
 export const getPolicySection = (policyId: string) =>
   listPolicySections().find(section => section.snippet_id === policyId);
