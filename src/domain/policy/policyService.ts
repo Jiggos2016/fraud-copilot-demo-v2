@@ -16,10 +16,10 @@ const isEffectiveOn = (document: PolicyDocument, asOfDate?: string) => {
 
 export const listPolicyDocuments = () => documents;
 
-export const listPolicySections = (): PolicySection[] => sections.map(section => ({
-  ...section,
-  document: documentByTitle.get(section.source_doc),
-}));
+export const listPolicySections = (): PolicySection[] => sections.map(section => {
+  const document = documentByTitle.get(section.source_doc);
+  return document ? { ...section, document } : { ...section };
+});
 
 export const getPolicySection = (policyId: string) =>
   listPolicySections().find(section => section.snippet_id === policyId);
