@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 import { Link } from '@tanstack/react-router';
-import { BookOpen, LayoutDashboard, ShieldCheck } from 'lucide-react';
+import { BookOpen, LayoutDashboard, ListChecks, ShieldCheck } from 'lucide-react';
 import claimantsData from '@/data/claimants.json';
 import employersData from '@/data/employers.json';
 import claimsData from '@/data/claims.json';
@@ -8,10 +8,12 @@ import casesData from '@/data/cases.json';
 import investigatorsData from '@/data/investigators.json';
 import policiesData from '@/data/policy_snippets.json';
 import scriptsData from '@/data/copilotScripts.json';
+import rulesData from '@/data/rules.json';
 
 export type Citation = { type: 'case' | 'policy'; id: string; label: string };
 export type Script = { match: string; answer: string; citations: Citation[] };
 export type AuditEntry = { at: string; action: string; detail: string };
+export type Rule = (typeof rulesData)[number];
 
 export const claimants = claimantsData;
 export const employers = employersData;
@@ -20,6 +22,7 @@ export const cases = casesData;
 export const investigators = investigatorsData;
 export const policies = policiesData;
 export const scripts = scriptsData as Record<string, Script[]>;
+export const rules = rulesData;
 
 export const riskBand = (score: number) => score < 40 ? 'Low' : score < 70 ? 'Medium' : 'High';
 export const riskClass = (score: number) => score < 40 ? 'bg-emerald-50 text-emerald-800 ring-1 ring-emerald-200' : score < 70 ? 'bg-amber-50 text-amber-800 ring-1 ring-amber-200' : 'bg-red-50 text-red-800 ring-1 ring-red-200';
@@ -37,6 +40,7 @@ export const recordDisposition = (claimId: string, value: string, at: string) =>
 export const effectiveStatus = (claimId: string, status: string) =>
   sessionDispositions[claimId] ? `Closed · ${sessionDispositions[claimId].value}` : status;
 export const splitSignals = (s: string) => s.split(';').filter(x => x && x !== 'none');
+export const rulesForSignals = (signals: string[]) => rules.filter(rule => rule.trigger_signals.some(signal => signals.includes(signal)));
 
 export function RiskScore({ score, size = 'md' }: { score: number; size?: 'md' | 'lg' }) {
   return <div className={`inline-flex items-center gap-2 rounded px-2 py-1 ${riskClass(score)}`}>
@@ -52,6 +56,7 @@ export function Shell({ children }: { children: ReactNode }) {
   const nav = [
     ['/', 'Risk Queue', LayoutDashboard],
     ['/policy', 'Policy Search', BookOpen],
+    ['/rules', 'Rule Catalog', ListChecks],
     ['/admin', 'Admin', ShieldCheck],
   ] as const;
   return <div className="min-h-screen bg-slate-100 text-slate-900">
