@@ -3,17 +3,21 @@ import { FileCheck2, ShieldAlert, Workflow } from 'lucide-react';
 import { getRuleCatalog } from '@/domain/rules/ruleEngine';
 import type { InvestigationRule } from '@/domain/rules/ruleTypes';
 import { getPolicySection } from '@/domain/policy/policyService';
+import { getApprovedPolicyIdsForRule } from '@/domain/policy/policyRuleMappingStore';
 import { PageHeader, signalLabel } from './shared';
 
 const rules = getRuleCatalog();
 
 function PolicyLinks({ rule }: { rule: InvestigationRule }) {
+  const uploaded = getApprovedPolicyIdsForRule(rule.rule_id);
+  const ids = [...new Set([...rule.policy_ids, ...uploaded])];
   return <div className="flex flex-wrap gap-1.5">
-    {rule.policy_ids.map(id => {
+    {ids.map(id => {
       const policy = getPolicySection(id);
       const version = policy?.document?.version;
-      return <Link key={id} to="/policy" search={{ search: id }} className="rounded-md border border-blue-200 bg-blue-50 px-2 py-1 text-xs font-semibold text-blue-800 transition hover:border-blue-300 hover:bg-blue-100 hover:underline">
-        {id}{policy ? ` · ${policy.section}` : ''}{version ? ` · v${version}` : ''}
+      const isUploaded = uploaded.includes(id);
+      return <Link key={id} to="/policy" search={{ search: id }} className={`rounded-md border px-2 py-1 text-xs font-semibold transition hover:underline ${isUploaded ? 'border-violet-200 bg-violet-50 text-violet-800 hover:bg-violet-100' : 'border-blue-200 bg-blue-50 text-blue-800 hover:border-blue-300 hover:bg-blue-100'}`}>
+        {id}{policy ? ` · ${policy.section}` : ''}{version ? ` · v${version}` : ''}{isUploaded ? ' · approved upload' : ''}
       </Link>;
     })}
   </div>;
@@ -30,7 +34,7 @@ export default function RuleCatalog() {
 
     <div className="mb-4 flex items-start gap-2.5 rounded-xl border border-amber-200 bg-amber-50/80 px-4 py-3 text-sm leading-6 text-amber-950">
       <ShieldAlert size={17} className="mt-0.5 shrink-0 text-amber-700"/>
-      <span><strong>Rules are investigative controls, not adjudication decisions.</strong> Every rule requires human review and corroborating evidence from the current claim.</span>
+      <span><strong>Rules are investigative controls, not adjudication decisions.</strong> Uploaded policy sections only become part of a rule's policy basis after an administrator approves the mapping.</span>
     </div>
 
     <div className="space-y-4">

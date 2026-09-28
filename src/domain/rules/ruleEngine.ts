@@ -1,4 +1,5 @@
 import rulesData from '@/data/rules.json';
+import { getApprovedPolicyIdsForRules } from '@/domain/policy/policyRuleMappingStore';
 import type { InvestigationRule, TriggeredRule } from './ruleTypes';
 
 const rules = rulesData as InvestigationRule[];
@@ -21,5 +22,9 @@ export function evaluateRules(signals: string[]): TriggeredRule[] {
     .filter(result => result.matchedSignals.length > 0);
 }
 
-export const getPolicyIdsForSignals = (signals: string[]) =>
-  [...new Set(evaluateRules(signals).flatMap(result => result.rule.policy_ids))];
+export const getPolicyIdsForSignals = (signals: string[]) => {
+  const triggered = evaluateRules(signals);
+  const staticPolicyIds = triggered.flatMap(result => result.rule.policy_ids);
+  const approvedUploadedPolicyIds = getApprovedPolicyIdsForRules(triggered.map(result => result.rule.rule_id));
+  return [...new Set([...staticPolicyIds, ...approvedUploadedPolicyIds])];
+};
