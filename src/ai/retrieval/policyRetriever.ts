@@ -1,5 +1,5 @@
 import { getApplicablePolicySections } from '@/domain/policy/policyService';
-import type { PolicySection } from '@/domain/policy/policyTypes';
+import type { PolicyQueryContext, PolicySection } from '@/domain/policy/policyTypes';
 
 export type PolicyRetrievalResult = {
   item: PolicySection;
@@ -7,10 +7,7 @@ export type PolicyRetrievalResult = {
   reasons: string[];
 };
 
-export type PolicyRetrievalContext = {
-  policyIds?: string[];
-  asOfDate?: string;
-  jurisdiction?: string;
+export type PolicyRetrievalContext = PolicyQueryContext & {
   limit?: number;
 };
 
@@ -19,11 +16,12 @@ const tokenize = (text: string) =>
 
 export function retrievePolicies(query: string, context: PolicyRetrievalContext = {}): PolicyRetrievalResult[] {
   const queryTokens = tokenize(query);
-  const candidates = getApplicablePolicySections({
-    policyIds: context.policyIds,
-    asOfDate: context.asOfDate,
-    jurisdiction: context.jurisdiction,
-  });
+  const policyContext: PolicyQueryContext = {
+    ...(context.policyIds ? { policyIds: context.policyIds } : {}),
+    ...(context.asOfDate ? { asOfDate: context.asOfDate } : {}),
+    ...(context.jurisdiction ? { jurisdiction: context.jurisdiction } : {}),
+  };
+  const candidates = getApplicablePolicySections(policyContext);
 
   return candidates
     .map(item => {
