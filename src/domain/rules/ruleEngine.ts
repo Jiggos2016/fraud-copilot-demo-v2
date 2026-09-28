@@ -1,5 +1,6 @@
 import rulesData from '@/data/rules.json';
 import { getApprovedPolicyIdsForRules } from '@/domain/policy/policyRuleMappingStore';
+import { getApplicablePolicySections } from '@/domain/policy/policyService';
 import type { InvestigationRule, TriggeredRule } from './ruleTypes';
 
 const rules = rulesData as InvestigationRule[];
@@ -22,9 +23,16 @@ export function evaluateRules(signals: string[]): TriggeredRule[] {
     .filter(result => result.matchedSignals.length > 0);
 }
 
+/**
+ * Rule-to-policy lineage is deterministic: built-in rule policy IDs plus only
+ * administrator-approved uploaded mappings whose policy document is Active in
+ * the Policy Knowledge Service.
+ */
 export const getPolicyIdsForSignals = (signals: string[]) => {
   const triggered = evaluateRules(signals);
   const staticPolicyIds = triggered.flatMap(result => result.rule.policy_ids);
   const approvedUploadedPolicyIds = getApprovedPolicyIdsForRules(triggered.map(result => result.rule.rule_id));
-  return [...new Set([...staticPolicyIds, ...approvedUploadedPolicyIds])];
+  const activeApprovedUploadedIds = getApplicablePolicySections({ policyIds: approvedUploadedPolicyIds })
+    .map(section => section.snippet_id);
+  return [...new Set([...staticPolicyIds, ...activeApprovedUploadedIds])];
 };
