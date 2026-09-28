@@ -10,6 +10,7 @@
   "dependencies": {
     "@tanstack/react-router": "1.170.18",
     "lucide-react": "^0.575.0",
+    "pdfjs-dist": "6.3.289",
     "react": "^19.2.0",
     "react-dom": "^19.2.0"
   },
