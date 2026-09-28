@@ -1,0 +1,42 @@
+{
+  "CLM-101": [
+    {"match":"similar closed cases","answer":"CASE-2006 is a useful false-positive precedent because device reuse was explained by a shared household laptop after employer verification. Review it before treating device reuse as corroboration.","citations":[{"type":"case","id":"CASE-2006","label":"CASE-2006 · Inconclusive"}]},
+    {"match":"shared ip","answer":"A shared IP or device is an investigative lead, not standalone proof. Policy requires at least one additional independent signal before referral for adjudication.","citations":[{"type":"policy","id":"POL-3","label":"Sec 7.3 · State UI Policy Manual"},{"type":"policy","id":"POL-7","label":"Ch 3 · Investigator Field Guide"}]},
+    {"match":"why prioritized","answer":"This claim was prioritized because the same filing IP is associated with CLM-102 and CLM-103, and the device fingerprint is also reused. These are investigative leads that require corroboration and do not establish fraud.","citations":[{"type":"policy","id":"POL-7","label":"Ch 3 · Investigator Field Guide"}]},
+    {"match":"policy signals","answer":"Shared IP addresses and reused devices are investigative indicators only. Policy requires corroborating evidence before referral or disposition. Shared household networks and devices can produce legitimate matches.","citations":[{"type":"policy","id":"POL-3","label":"Sec 7.3 · State UI Policy Manual"},{"type":"policy","id":"POL-7","label":"Ch 3 · Investigator Field Guide"}]},
+    {"match":"missing evidence","answer":"Employer verification is still pending. Payment evidence is not available in this demo dataset. Network, identity, related-claim, and policy evidence are available for review. The investigator should obtain or resolve the pending employer evidence before making a final determination.","citations":[{"type":"case","id":"CASE-2001","label":"CASE-2001 · Open"},{"type":"policy","id":"POL-3","label":"Sec 7.3 · State UI Policy Manual"}]}
+  ],
+  "CLM-102": [
+    {"match":"similar closed cases","answer":"CASE-2006 is the closest closed comparison for device reuse and illustrates a legitimate shared-device explanation.","citations":[{"type":"case","id":"CASE-2006","label":"CASE-2006 · Inconclusive"}]},
+    {"match":"shared ip","answer":"Policy states that shared infrastructure alone is insufficient for a fraud determination and must be corroborated.","citations":[{"type":"policy","id":"POL-3","label":"Sec 7.3 · State UI Policy Manual"}]},
+    {"match":"why prioritized","answer":"CLM-102 shares both filing IP and device fingerprint with another claimant. The score prioritizes review only; it is not a fraud probability.","citations":[{"type":"policy","id":"POL-7","label":"Ch 3 · Investigator Field Guide"}]}
+  ],
+  "CLM-103": [
+    {"match":"shared ip","answer":"CLM-103 shares filing IP 198.51.100.23 with CLM-101 and CLM-102, but has a different device fingerprint. Shared IP alone cannot support a fraud determination.","citations":[{"type":"policy","id":"POL-3","label":"Sec 7.3 · State UI Policy Manual"}]},
+    {"match":"similar closed cases","answer":"CASE-2006 demonstrates why shared infrastructure needs corroboration: the apparent device link was explained by a household laptop and employer verification.","citations":[{"type":"case","id":"CASE-2006","label":"CASE-2006 · Inconclusive"}]}
+  ],
+  "CLM-104": [
+    {"match":"policy","answer":"For interstate employment histories, wage records should be requested from all states of employment before a determination is issued.","citations":[{"type":"policy","id":"POL-5","label":"Sec 11.2 · State UI Policy Manual"}]},
+    {"match":"ip mismatch","answer":"Geolocation mismatches are investigative leads only. VPNs and other network configurations can generate legitimate false positives.","citations":[{"type":"policy","id":"POL-7","label":"Ch 3 · Investigator Field Guide"}]}
+  ],
+  "CLM-105": [
+    {"match":"ip","answer":"Cross-country IP context and blocklisted ranges warrant review, but IP evidence remains a lead rather than standalone proof.","citations":[{"type":"policy","id":"POL-7","label":"Ch 3 · Investigator Field Guide"}]},
+    {"match":"identity","answer":"Where identity verification is mismatched, policy requires the claim to remain pending until the claimant completes the required identity confirmation.","citations":[{"type":"policy","id":"POL-2","label":"Sec 6.1 · State UI Policy Manual"}]}
+  ],
+  "CLM-107": [
+    {"match":"similar closed cases","answer":"This claim already has a closed case record: CASE-2006. The investigation found a shared household laptop and employer confirmation, resulting in an inconclusive disposition rather than an automated fraud finding.","citations":[{"type":"case","id":"CASE-2006","label":"CASE-2006 · Inconclusive"}]},
+    {"match":"device","answer":"Device reuse should be treated as an investigative lead. Shared household devices are a known legitimate explanation that requires corroboration.","citations":[{"type":"policy","id":"POL-3","label":"Sec 7.3 · State UI Policy Manual"}]}
+  ],
+  "CLM-109": [
+    {"match":"similar closed cases","answer":"CASE-2004 is the precedent noted in this case record. Review its full disposition notes before drafting a new determination because the current case shares an IP-pattern signal with that confirmed case.","citations":[{"type":"case","id":"CASE-2004","label":"CASE-2004 · Confirmed Fraud"},{"type":"policy","id":"POL-8","label":"Ch 5 · Investigator Field Guide"}]},
+    {"match":"sequential ip","answer":"Sequential IP clustering is an investigative lead. The field guide cautions that IP-based signals are not standalone proof.","citations":[{"type":"policy","id":"POL-7","label":"Ch 3 · Investigator Field Guide"}]}
+  ],
+  "CLM-110": [
+    {"match":"similar closed cases","answer":"CASE-2004 is the strongest documented precedent in this demo for the IP-pattern investigation. Precedent should inform review, not substitute for evidence in the current claim.","citations":[{"type":"case","id":"CASE-2004","label":"CASE-2004 · Confirmed Fraud"},{"type":"policy","id":"POL-8","label":"Ch 5 · Investigator Field Guide"}]},
+    {"match":"device","answer":"The shared device fingerprint with CLM-109 is a lead requiring corroboration. Device reuse by itself is insufficient for a fraud determination.","citations":[{"type":"policy","id":"POL-3","label":"Sec 7.3 · State UI Policy Manual"}]}
+  ],
+  "CLM-113": [
+    {"match":"earnings","answer":"Policy requires claimants to report all gross earnings for the certification week. The case note says quarterly wage data shows earnings during weeks claimed, so the investigator should reconcile wage evidence and claimant response before disposition.","citations":[{"type":"policy","id":"POL-1","label":"Sec 4.2 · State UI Policy Manual"}]},
+    {"match":"why prioritized","answer":"This claim is prioritized because of an undeclared wage match. The existing case remains open while awaiting claimant response, so the evidence is not yet a final determination.","citations":[{"type":"policy","id":"POL-1","label":"Sec 4.2 · State UI Policy Manual"}]}
+  ]
+}
