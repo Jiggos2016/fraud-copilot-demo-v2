@@ -1,6 +1,7 @@
 import { Gauge, Lock, ShieldAlert } from 'lucide-react';
 import { Metric, PageHeader } from './shared';
 import PolicyKnowledgeManager from './PolicyKnowledgeManager';
+import { useDemoRole } from './RoleContext';
 
 const thresholds: [string, string, string][] = [
   ['Low', '0 – 39', 'bg-emerald-500'],
@@ -9,6 +10,22 @@ const thresholds: [string, string, string][] = [
 ];
 
 export default function AdminView() {
+  const { permissions, roleLabel } = useDemoRole();
+
+  if (!permissions.viewAdministration) {
+    return <div>
+      <PageHeader
+        eyebrow="Role-based access"
+        title="Administration unavailable"
+        description={`The ${roleLabel} role is read-only and cannot access policy ingestion or platform administration controls.`}
+        right={<span className="inline-flex items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-900"><Lock size={13}/>Access restricted</span>}
+      />
+      <div className="card p-5 text-sm leading-6 text-slate-700">
+        Switch the header role back to <strong>Investigator</strong> to use the Administration demonstration. Auditor mode is intentionally limited to evidence, policy, rule, model-provenance, audit, and export views.
+      </div>
+    </div>;
+  }
+
   return <div>
     <PageHeader
       eyebrow="Platform governance"
