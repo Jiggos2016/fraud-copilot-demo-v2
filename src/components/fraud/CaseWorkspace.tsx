@@ -1,6 +1,7 @@
 import { Link } from '@tanstack/react-router';
 import { GitBranch, ShieldCheck } from 'lucide-react';
 import CaseDetail from './CaseDetail';
+import AuditorCaseSummary from './AuditorCaseSummary';
 import { claims, policies, rulesForSignals, signalLabel, splitSignals } from './shared';
 
 export default function CaseWorkspace({ claimId }: { claimId: string }) {
@@ -9,6 +10,8 @@ export default function CaseWorkspace({ claimId }: { claimId: string }) {
   const triggered = rulesForSignals(signals);
 
   return <div>
+    <AuditorCaseSummary claimId={claimId}/>
+
     {claim && <section className="card mb-3 overflow-hidden border-slate-300">
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 bg-slate-50 px-4 py-3">
         <div className="flex items-start gap-2.5">
