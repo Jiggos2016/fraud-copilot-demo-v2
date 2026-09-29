@@ -1,3 +1,6 @@
+import claimsData from '@/data/claims.json';
+import { getMlRiskOutput } from '@/domain/ml/mlRiskService';
+
 export type FinalDisposition = 'Confirmed Fraud' | 'False Positive' | 'Inconclusive';
 
 export type OutcomeFeedbackRecord = {
@@ -7,6 +10,8 @@ export type OutcomeFeedbackRecord = {
   appealOutcome: 'none' | 'upheld' | 'reversed' | 'modified';
   trainingStatus: 'pending-label-review' | 'approved-for-training' | 'excluded';
   source: 'investigator-disposition';
+  modelVersion?: string;
+  priorityScore?: number;
 };
 
 const OUTCOME_KEY = 'fraud-copilot-outcome-feedback';
@@ -37,6 +42,8 @@ export function recordOutcomeFeedback(input: {
   disposition: FinalDisposition;
   decidedAt: string;
 }): OutcomeFeedbackRecord {
+  const claim = claimsData.find(item => item.claim_id === input.claimId);
+  const ml = claim ? getMlRiskOutput(claim) : undefined;
   const record: OutcomeFeedbackRecord = {
     claimId: input.claimId,
     disposition: input.disposition,
@@ -44,6 +51,8 @@ export function recordOutcomeFeedback(input: {
     appealOutcome: 'none',
     trainingStatus: 'pending-label-review',
     source: 'investigator-disposition',
+    modelVersion: ml?.modelVersion,
+    priorityScore: ml?.priorityScore,
   };
   const remaining = readOutcomes().filter(item => item.claimId !== input.claimId);
   writeOutcomes([...remaining, record]);
@@ -53,7 +62,9 @@ export function recordOutcomeFeedback(input: {
 export const listOutcomeFeedback = () => readOutcomes();
 
 export function recordAppealOutcome(claimId: string, appealOutcome: OutcomeFeedbackRecord['appealOutcome']) {
-  const records = readOutcomes().map(record => record.claimId === claimId ? { ...record, appealOutcome } : record);
+  const records = readOutcomes().map(record => record.claimId === claimId
+    ? { ...record, appealOutcome, trainingStatus: 'pending-label-review' as const }
+    : record);
   writeOutcomes(records);
   return records.find(record => record.claimId === claimId);
 }
