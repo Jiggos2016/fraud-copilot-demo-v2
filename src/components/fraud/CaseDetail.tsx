@@ -77,7 +77,12 @@ export default function CaseDetail({ claimId }: { claimId: string }) {
       model: result.model,
       promptVersion: result.promptVersion,
       retrievedPolicyIds: result.retrievedPolicyIds,
+      mappedPolicyIds: result.mappedPolicyIds,
+      ragPolicyIds: result.ragPolicyIds,
       retrievedCaseIds: result.retrievedCaseIds,
+      retrievalScope: result.retrievalScope,
+      citationValidationPassed: result.citationValidationPassed,
+      citationRetryCount: result.citationRetryCount,
     })]);
     setQuery('');
   };
@@ -95,7 +100,10 @@ export default function CaseDetail({ claimId }: { claimId: string }) {
     const at = stamp();
     recordDisposition(claimId, pendingDisposition, at);
     setSubmittedDisposition({ value: pendingDisposition, at });
-    setAudit(a => [...a, { at, action: 'Disposition submitted', detail: pendingDisposition }]);
+    setAudit(a => [...a,
+      { at, action: 'Disposition submitted', detail: pendingDisposition },
+      { at, action: 'Outcome feedback queued', detail: 'Human disposition stored as pending label review for the governed retraining loop; no automatic retraining occurs.' },
+    ]);
     setPendingDisposition(null);
   };
 
