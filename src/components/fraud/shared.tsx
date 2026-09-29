@@ -9,6 +9,7 @@ import investigatorsData from '@/data/investigators.json';
 import policiesData from '@/data/policy_snippets.json';
 import scriptsData from '@/data/copilotScripts.json';
 import rulesData from '@/data/rules.json';
+import { recordOutcomeFeedback, type FinalDisposition } from '@/domain/outcomes/outcomeFeedbackService';
 
 export type Citation = { type: 'case' | 'policy'; id: string; label: string };
 export type Script = { match: string; answer: string; citations: Citation[] };
@@ -35,11 +36,15 @@ export const money = (n: number) => new Intl.NumberFormat('en-US', { style: 'cur
 export const stamp = () => new Date().toLocaleString();
 
 const DISP_KEY = 'fraud-copilot-session-dispositions';
+const FINAL_DISPOSITIONS: FinalDisposition[] = ['Confirmed Fraud', 'False Positive', 'Inconclusive'];
 export const sessionDispositions: Record<string, { value: string; at: string }> =
   typeof window !== 'undefined' ? JSON.parse(window.sessionStorage.getItem(DISP_KEY) || '{}') : {};
 export const recordDisposition = (claimId: string, value: string, at: string) => {
   sessionDispositions[claimId] = { value, at };
   if (typeof window !== 'undefined') window.sessionStorage.setItem(DISP_KEY, JSON.stringify(sessionDispositions));
+  if (FINAL_DISPOSITIONS.includes(value as FinalDisposition)) {
+    recordOutcomeFeedback({ claimId, disposition: value as FinalDisposition, decidedAt: at });
+  }
 };
 export const effectiveStatus = (claimId: string, status: string) =>
   sessionDispositions[claimId] ? `Closed · ${sessionDispositions[claimId].value}` : status;

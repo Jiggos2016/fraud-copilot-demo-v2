@@ -1,6 +1,7 @@
 import claimsData from '@/data/claims.json';
 import casesData from '@/data/cases.json';
 import { parseSignalString } from '@/domain/rules/ruleEngine';
+import { getMlRiskOutput, type FeatureAttribution, type RiskBand } from '@/domain/ml/mlRiskService';
 
 export type CaseRetrievalResult = {
   caseId: string;
@@ -10,20 +11,35 @@ export type CaseRetrievalResult = {
   matchedSignals: string[];
   score: number;
   scope: 'current-case' | 'expanded-closed-cases';
+  priorityScore?: number;
+  priorityBand?: RiskBand;
+  modelVersion?: string;
+  featureAttributions?: FeatureAttribution[];
 };
 
+/**
+ * Case-first knowledge is always available independently of rule hits. This is
+ * important for anomaly-only cases where ML prioritizes a claim but no
+ * deterministic rule fires.
+ */
 export function retrieveCurrentCaseKnowledge(claimId: string): CaseRetrievalResult[] {
-  const caseItem = casesData.find(item => item.claim_id === claimId);
-  if (!caseItem) return [];
   const claim = claimsData.find(item => item.claim_id === claimId);
+  const caseItem = casesData.find(item => item.claim_id === claimId);
+  if (!claim) return [];
+
+  const ml = getMlRiskOutput(claim);
   return [{
-    caseId: caseItem.case_id,
+    caseId: caseItem?.case_id ?? claimId,
     claimId,
-    disposition: caseItem.disposition,
-    notes: caseItem.notes_summary,
-    matchedSignals: claim ? parseSignalString(claim.top_signals) : [],
+    disposition: caseItem?.disposition ?? 'Open',
+    notes: caseItem?.notes_summary ?? 'Current claim record.',
+    matchedSignals: parseSignalString(claim.top_signals),
     score: 100,
     scope: 'current-case',
+    priorityScore: ml.priorityScore,
+    priorityBand: ml.priorityBand,
+    modelVersion: ml.modelVersion,
+    featureAttributions: ml.featureAttributions,
   }];
 }
 

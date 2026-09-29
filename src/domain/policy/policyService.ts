@@ -35,6 +35,21 @@ export const listPolicySections = (): PolicySection[] => {
 export const getPolicySection = (policyId: string) =>
   listPolicySections().find(section => section.snippet_id === policyId);
 
+/**
+ * Exact rule-mapped policy lookup. This does not rank or search. If a rule maps
+ * to a section ID, the active/effective section is loaded directly by ID.
+ */
+export function getPolicySectionsByIds(policyIds: string[], context: Omit<PolicyQueryContext, 'policyIds'> = {}) {
+  const requested = new Set(policyIds);
+  return listPolicySections().filter(section => {
+    if (!requested.has(section.snippet_id)) return false;
+    const document = section.document;
+    if (!document) return false;
+    if (context.jurisdiction && document.jurisdiction !== context.jurisdiction) return false;
+    return isEffectiveOn(document, context.asOfDate);
+  });
+}
+
 export function getApplicablePolicySections(context: PolicyQueryContext = {}) {
   return listPolicySections().filter(section => {
     const document = section.document;

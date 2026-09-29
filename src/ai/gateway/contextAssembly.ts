@@ -6,7 +6,8 @@ export type MinimumNecessaryAiContext = {
   question: string;
   signals: string[];
   triggeredRuleIds: string[];
-  policyReferences: string[];
+  mappedPolicyReferences: string[];
+  ragPolicyReferences: string[];
   caseReferences: string[];
   sourceSummaries: string[];
   rationale: InvestigationRationale;
@@ -14,15 +15,17 @@ export type MinimumNecessaryAiContext = {
 };
 
 /**
- * Builds the context sent to the model. Direct claimant PII such as name,
- * filing IP, device fingerprint, address, or employer contact information is
- * intentionally excluded unless a future approved use case explicitly needs it.
+ * Internal AI-gateway stage. Direct claimant PII such as name, filing IP,
+ * device fingerprint, address, or employer contact information is excluded.
+ * Every model request must pass through this function before provider routing.
  */
 export function assembleMinimumNecessaryContext(input: {
   claimId: string;
   question: string;
   signals: string[];
   triggeredRuleIds: string[];
+  mappedPolicyIds: string[];
+  ragPolicyIds: string[];
   citations: GroundingCitation[];
   sourceSummaries: string[];
   rationale: InvestigationRationale;
@@ -32,7 +35,8 @@ export function assembleMinimumNecessaryContext(input: {
     question: input.question,
     signals: input.signals,
     triggeredRuleIds: input.triggeredRuleIds,
-    policyReferences: input.citations.filter(citation => citation.type === 'policy').map(citation => citation.id),
+    mappedPolicyReferences: input.mappedPolicyIds,
+    ragPolicyReferences: input.ragPolicyIds,
     caseReferences: input.citations.filter(citation => citation.type === 'case').map(citation => citation.id),
     sourceSummaries: input.sourceSummaries,
     rationale: input.rationale,
