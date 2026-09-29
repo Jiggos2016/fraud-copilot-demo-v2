@@ -1,9 +1,18 @@
 import type { GroundingCitation } from '@/ai/copilot/grounding';
-import type { MinimumNecessaryAiContext } from './contextAssembly';
+import type { InvestigationRationale } from '@/ai/copilot/rationale';
+import { assembleMinimumNecessaryContext, type MinimumNecessaryAiContext } from './contextAssembly';
 
 export type GroundedAiRequest = {
-  context: MinimumNecessaryAiContext;
+  claimId: string;
+  question: string;
+  signals: string[];
+  triggeredRuleIds: string[];
+  mappedPolicyIds: string[];
+  ragPolicyIds: string[];
   citations: GroundingCitation[];
+  sourceSummaries: string[];
+  rationale: InvestigationRationale;
+  groundingMode?: 'standard' | 'strict-retry';
 };
 
 export type GroundedAiResponse = {
@@ -11,6 +20,7 @@ export type GroundedAiResponse = {
   model: string;
   promptVersion: string;
   answer: string;
+  context: MinimumNecessaryAiContext;
 };
 
 export interface AiGateway {
@@ -19,16 +29,24 @@ export interface AiGateway {
 
 export class MockAiGateway implements AiGateway {
   async generateGroundedAnswer(request: GroundedAiRequest): Promise<GroundedAiResponse> {
-    const sources = request.context.sourceSummaries.slice(0, 3);
+    // PII minimization is inside the gateway boundary so callers cannot bypass it.
+    const context = assembleMinimumNecessaryContext(request);
+    const sources = context.sourceSummaries.slice(0, request.groundingMode === 'strict-retry' ? 2 : 4);
+    const groundingPrefix = request.groundingMode === 'strict-retry'
+      ? 'Use only the cited retrieved sources. '
+      : '';
     const answer = sources.length
-      ? `${sources.join(' ')} The applicable rules and retrieved sources are investigative guidance only; a human investigator must review the evidence before disposition.`
+      ? `${groundingPrefix}${sources.join(' ')} The applicable rules and retrieved sources are investigative guidance only; a human investigator must review the evidence before disposition.`
       : '';
 
     return {
       provider: 'mock',
       model: 'deterministic-grounded-demo',
-      promptVersion: 'fraud-copilot-grounded-v2-minimum-pii',
+      promptVersion: request.groundingMode === 'strict-retry'
+        ? 'fraud-copilot-grounded-v3-strict-retry'
+        : 'fraud-copilot-grounded-v3-gateway-pii',
       answer,
+      context,
     };
   }
 }
