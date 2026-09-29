@@ -3,6 +3,8 @@ import { getPolicySectionsByIds } from '@/domain/policy/policyService';
 import { retrievePolicies } from '@/ai/retrieval/policyRetriever';
 import { retrieveCurrentCaseKnowledge, retrieveSimilarClosedCases } from '@/ai/retrieval/caseRetriever';
 import { aiGateway } from '@/ai/gateway/aiGateway';
+import { getCurrentDemoRole, hasDemoPermission } from '@/domain/access/accessControl';
+import { recordCopilotTranscript } from '@/audit/copilotTranscriptStore';
 import { buildInvestigationRationale, type InvestigationRationale } from './rationale';
 import { type GroundingCitation } from './grounding';
 import { validateGeneratedCitations } from './outputCitationValidator';
@@ -48,6 +50,10 @@ export async function answerCopilotQuestion(input: {
   intent?: string;
   asOfDate?: string;
 }): Promise<CopilotAnswer> {
+  if (!hasDemoPermission(getCurrentDemoRole(), 'queryCopilot')) {
+    throw new Error('Copilot querying is not permitted in the current read-only role.');
+  }
+
   // The flow starts with the current case and investigator question, not with a rule hit.
   const rationale = buildInvestigationRationale(input.claimId, input.signals);
   const currentCaseResults = retrieveCurrentCaseKnowledge(input.claimId);
@@ -124,7 +130,7 @@ export async function answerCopilotQuestion(input: {
     validation = validateGeneratedCitations(generated.answer, citations, retrievedSourceIds);
   }
 
-  return {
+  const result: CopilotAnswer = {
     answer: validation.answer,
     citations: validation.citations,
     rationale,
@@ -139,4 +145,22 @@ export async function answerCopilotQuestion(input: {
     citationValidationPassed: validation.passed,
     citationRetryCount,
   };
+
+  recordCopilotTranscript({
+    claimId: input.claimId,
+    question: input.question,
+    answer: result.answer,
+    citations: result.citations,
+    provider: result.provider,
+    model: result.model,
+    promptVersion: result.promptVersion,
+    mappedPolicyIds: result.mappedPolicyIds,
+    ragPolicyIds: result.ragPolicyIds,
+    retrievedCaseIds: result.retrievedCaseIds,
+    retrievalScope: result.retrievalScope,
+    citationValidationPassed: result.citationValidationPassed,
+    citationRetryCount: result.citationRetryCount,
+  });
+
+  return result;
 }
