@@ -1,11 +1,10 @@
-import scriptsData from '@/data/copilotScripts.json';
 import { evaluateRules, getPolicyIdsForSignals } from '@/domain/rules/ruleEngine';
+import { getPolicySectionsByIds } from '@/domain/policy/policyService';
 import { retrievePolicies } from '@/ai/retrieval/policyRetriever';
 import { retrieveCurrentCaseKnowledge, retrieveSimilarClosedCases } from '@/ai/retrieval/caseRetriever';
 import { aiGateway } from '@/ai/gateway/aiGateway';
-import { assembleMinimumNecessaryContext } from '@/ai/gateway/contextAssembly';
 import { buildInvestigationRationale, type InvestigationRationale } from './rationale';
-import { requireGrounding, type GroundingCitation } from './grounding';
+import { type GroundingCitation } from './grounding';
 import { validateGeneratedCitations } from './outputCitationValidator';
 
 export type RetrievalScope = 'current-case' | 'expanded-closed-cases';
@@ -18,23 +17,28 @@ export type CopilotAnswer = {
   model: string;
   promptVersion: string;
   retrievedPolicyIds: string[];
+  mappedPolicyIds: string[];
+  ragPolicyIds: string[];
   retrievedCaseIds: string[];
   retrievalScope: RetrievalScope;
   citationValidationPassed: boolean;
+  citationRetryCount: number;
 };
-
-type Script = {
-  match: string;
-  answer: string;
-  citations: GroundingCitation[];
-};
-
-const scripts = scriptsData as Record<string, Script[]>;
 
 const asksForExpandedCaseSearch = (question: string, intent?: string) => {
   if (intent === 'similar closed cases') return true;
   const q = question.toLowerCase();
   return ['similar closed', 'closed case', 'prior adjudication', 'precedent', 'similar case'].some(term => q.includes(term));
+};
+
+const caseSummary = (result: ReturnType<typeof retrieveCurrentCaseKnowledge>[number]) => {
+  const attribution = result.featureAttributions?.length
+    ? ` Contributing features: ${result.featureAttributions.map(item => `${item.feature} (${item.explanation})`).join('; ')}`
+    : '';
+  const priority = typeof result.priorityScore === 'number'
+    ? ` Investigation-priority score ${result.priorityScore} (${result.priorityBand}) from ${result.modelVersion}.${attribution}`
+    : '';
+  return `${result.caseId}: ${result.notes}${priority}`;
 };
 
 export async function answerCopilotQuestion(input: {
@@ -44,76 +48,81 @@ export async function answerCopilotQuestion(input: {
   intent?: string;
   asOfDate?: string;
 }): Promise<CopilotAnswer> {
+  // The flow starts with the current case and investigator question, not with a rule hit.
   const rationale = buildInvestigationRationale(input.claimId, input.signals);
-  const expandCaseScope = asksForExpandedCaseSearch(input.question, input.intent);
-  const retrievalScope: RetrievalScope = expandCaseScope ? 'expanded-closed-cases' : 'current-case';
-  const scripted = scripts[input.claimId] || [];
-  const scriptHit = input.intent
-    ? scripted.find(script => script.match === input.intent)
-    : scripted.find(script => {
-        const query = input.question.toLowerCase();
-        return query.includes(script.match.toLowerCase()) || script.match.toLowerCase().includes(query);
-      });
+  const currentCaseResults = retrieveCurrentCaseKnowledge(input.claimId);
+  const triggeredRules = evaluateRules(input.signals);
+  const triggeredRuleIds = triggeredRules.map(result => result.rule.rule_id);
 
-  if (scriptHit) {
-    const grounded = requireGrounding(scriptHit.answer, scriptHit.citations);
-    return {
-      ...grounded,
-      rationale,
-      provider: 'scripted-local',
-      model: 'grounded-script-v1',
-      promptVersion: 'fraud-copilot-script-v1',
-      retrievedPolicyIds: scriptHit.citations.filter(c => c.type === 'policy').map(c => c.id),
-      retrievedCaseIds: scriptHit.citations.filter(c => c.type === 'case').map(c => c.id),
-      retrievalScope,
-      citationValidationPassed: grounded.citations.length > 0,
-    };
-  }
+  // Exact rule -> policy lineage is loaded directly by mapped section ID. No ranking/search.
+  const mappedPolicyIds = getPolicyIdsForSignals(input.signals);
+  const mappedPolicySections = getPolicySectionsByIds(mappedPolicyIds, { asOfDate: input.asOfDate });
 
-  const policyIds = getPolicyIdsForSignals(input.signals);
-  const policyResults = retrievePolicies(input.question, {
-    policyIds,
+  // RAG is question-driven and searches for additional relevant policy independently of mappings.
+  const ragPolicyResults = retrievePolicies(input.question, {
     asOfDate: input.asOfDate,
     limit: 4,
-  });
-  const currentCaseResults = retrieveCurrentCaseKnowledge(input.claimId);
+  }).filter(result => !mappedPolicyIds.includes(result.item.snippet_id));
+
+  // Broader case/precedent retrieval is explicit and logged through retrievalScope.
+  const expandCaseScope = asksForExpandedCaseSearch(input.question, input.intent);
+  const retrievalScope: RetrievalScope = expandCaseScope ? 'expanded-closed-cases' : 'current-case';
   const expandedCaseResults = expandCaseScope ? retrieveSimilarClosedCases(input.claimId, input.signals, 3) : [];
   const caseResults = [...currentCaseResults, ...expandedCaseResults];
 
-  const citations: GroundingCitation[] = [
-    ...policyResults.map(({ item }) => ({
-      type: 'policy' as const,
-      id: item.snippet_id,
-      label: `${item.section} · ${item.source_doc}`,
-    })),
-    ...caseResults.map(result => ({
-      type: 'case' as const,
-      id: result.caseId,
-      label: `${result.caseId} · ${result.disposition}`,
-    })),
-  ];
+  const mappedPolicyCitations: GroundingCitation[] = mappedPolicySections.map(item => ({
+    type: 'policy',
+    id: item.snippet_id,
+    label: `${item.section} · ${item.source_doc} · mapped`,
+  }));
+  const ragPolicyCitations: GroundingCitation[] = ragPolicyResults.map(({ item }) => ({
+    type: 'policy',
+    id: item.snippet_id,
+    label: `${item.section} · ${item.source_doc} · question retrieval`,
+  }));
+  const caseCitations: GroundingCitation[] = caseResults.map(result => ({
+    type: 'case',
+    id: result.caseId,
+    label: `${result.caseId} · ${result.scope === 'current-case' ? 'current case' : result.disposition}`,
+  }));
+  const citations = [...mappedPolicyCitations, ...ragPolicyCitations, ...caseCitations];
 
   const sourceSummaries = [
-    ...policyResults.map(({ item }) => `${item.snippet_id}: ${item.text}`),
-    ...caseResults.map(result => `${result.caseId}: ${result.notes}`),
+    ...currentCaseResults.map(result => `CURRENT CASE: ${caseSummary(result)}`),
+    ...mappedPolicySections.map(item => `MAPPED POLICY ${item.snippet_id}: ${item.text}`),
+    ...ragPolicyResults.map(({ item }) => `QUESTION-RETRIEVED POLICY ${item.snippet_id}: ${item.text}`),
+    ...expandedCaseResults.map(result => `EXPANDED CASE ${result.caseId}: ${result.notes}`),
   ];
-  const triggeredRuleIds = evaluateRules(input.signals).map(result => result.rule.rule_id);
-  const context = assembleMinimumNecessaryContext({
+
+  const gatewayRequest = {
     claimId: input.claimId,
     question: input.question,
     signals: input.signals,
     triggeredRuleIds,
+    mappedPolicyIds: mappedPolicySections.map(item => item.snippet_id),
+    ragPolicyIds: ragPolicyResults.map(result => result.item.snippet_id),
     citations,
     sourceSummaries,
     rationale,
-  });
+  };
 
-  const generated = await aiGateway.generateGroundedAnswer({ context, citations });
-  const validation = validateGeneratedCitations(
-    generated.answer,
-    citations,
-    [...policyResults.map(result => result.item.snippet_id), ...caseResults.map(result => result.caseId)],
-  );
+  const retrievedSourceIds = [
+    ...mappedPolicySections.map(item => item.snippet_id),
+    ...ragPolicyResults.map(result => result.item.snippet_id),
+    ...caseResults.map(result => result.caseId),
+  ];
+
+  let generated = await aiGateway.generateGroundedAnswer(gatewayRequest);
+  let validation = validateGeneratedCitations(generated.answer, citations, retrievedSourceIds);
+  let citationRetryCount = 0;
+
+  // Fail closed: block the first failed response, retry exactly once with stricter grounding,
+  // then return the canonical no-grounded-answer response if validation still fails.
+  if (!validation.passed) {
+    citationRetryCount = 1;
+    generated = await aiGateway.generateGroundedAnswer({ ...gatewayRequest, groundingMode: 'strict-retry' });
+    validation = validateGeneratedCitations(generated.answer, citations, retrievedSourceIds);
+  }
 
   return {
     answer: validation.answer,
@@ -122,9 +131,12 @@ export async function answerCopilotQuestion(input: {
     provider: generated.provider,
     model: generated.model,
     promptVersion: generated.promptVersion,
-    retrievedPolicyIds: policyResults.map(result => result.item.snippet_id),
+    retrievedPolicyIds: [...new Set([...mappedPolicySections.map(item => item.snippet_id), ...ragPolicyResults.map(result => result.item.snippet_id)])],
+    mappedPolicyIds: mappedPolicySections.map(item => item.snippet_id),
+    ragPolicyIds: ragPolicyResults.map(result => result.item.snippet_id),
     retrievedCaseIds: caseResults.map(result => result.caseId),
     retrievalScope,
     citationValidationPassed: validation.passed,
+    citationRetryCount,
   };
 }
