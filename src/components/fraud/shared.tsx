@@ -10,6 +10,8 @@ import policiesData from '@/data/policy_snippets.json';
 import scriptsData from '@/data/copilotScripts.json';
 import rulesData from '@/data/rules.json';
 import { recordOutcomeFeedback, type FinalDisposition } from '@/domain/outcomes/outcomeFeedbackService';
+import { getCurrentDemoRole, hasDemoPermission, type DemoRole } from '@/domain/access/accessControl';
+import { DemoRoleProvider, useDemoRole } from './RoleContext';
 
 export type Citation = { type: 'case' | 'policy'; id: string; label: string };
 export type Script = { match: string; answer: string; citations: Citation[] };
@@ -40,11 +42,13 @@ const FINAL_DISPOSITIONS: FinalDisposition[] = ['Confirmed Fraud', 'False Positi
 export const sessionDispositions: Record<string, { value: string; at: string }> =
   typeof window !== 'undefined' ? JSON.parse(window.sessionStorage.getItem(DISP_KEY) || '{}') : {};
 export const recordDisposition = (claimId: string, value: string, at: string) => {
+  if (!hasDemoPermission(getCurrentDemoRole(), 'submitDisposition')) return false;
   sessionDispositions[claimId] = { value, at };
   if (typeof window !== 'undefined') window.sessionStorage.setItem(DISP_KEY, JSON.stringify(sessionDispositions));
   if (FINAL_DISPOSITIONS.includes(value as FinalDisposition)) {
     recordOutcomeFeedback({ claimId, disposition: value as FinalDisposition, decidedAt: at });
   }
+  return true;
 };
 export const effectiveStatus = (claimId: string, status: string) =>
   sessionDispositions[claimId] ? `Closed · ${sessionDispositions[claimId].value}` : status;
@@ -62,16 +66,22 @@ export function RiskScore({ score, size = 'md' }: { score: number; size?: 'md' |
 }
 
 export function Shell({ children }: { children: ReactNode }) {
+  return <DemoRoleProvider><ShellFrame>{children}</ShellFrame></DemoRoleProvider>;
+}
+
+function ShellFrame({ children }: { children: ReactNode }) {
+  const { role, roleLabel, permissions, isReadOnly, setRole } = useDemoRole();
   const nav = [
     ['/', 'Risk Queue', LayoutDashboard, 'Investigation workload'],
     ['/policy', 'Policy Search', BookOpen, 'Grounded policy corpus'],
     ['/rules', 'Rule Catalog', ListChecks, 'Decision governance'],
     ['/admin', 'Administration', Settings2, 'Knowledge & controls'],
   ] as const;
+  const visibleNav = nav.filter(([to]) => to !== '/admin' || permissions.viewAdministration);
 
   return <div className="min-h-screen bg-[#f7f9fc] text-slate-900">
     <header className="border-b border-slate-800/80 bg-[#0b1630] text-white shadow-sm">
-      <div className="mx-auto flex h-16 max-w-[1680px] items-center justify-between gap-4 px-4 md:px-6">
+      <div className="mx-auto flex min-h-16 max-w-[1680px] items-center justify-between gap-4 px-4 py-2 md:px-6">
         <div className="flex min-w-0 items-center gap-3.5">
           <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-blue-600 shadow-[0_0_0_1px_rgba(255,255,255,0.12)]"><ShieldCheck size={19}/></div>
           <div className="min-w-0 leading-tight">
@@ -79,12 +89,26 @@ export function Shell({ children }: { children: ReactNode }) {
             <div className="mt-0.5 truncate text-[11px] text-slate-400">Division of Program Integrity · Synthetic demonstration environment</div>
           </div>
         </div>
-        <nav className="hidden items-center gap-1 lg:hidden md:flex">{nav.map(([to, label]) => <Link key={to} to={to} activeOptions={{ exact: to === '/' }} className="rounded-lg px-2.5 py-1.5 text-xs font-medium text-slate-300 transition hover:bg-white/5 hover:text-white" activeProps={{ className: 'bg-white/10 text-white' }}>{label}</Link>)}</nav>
+        <nav className="hidden items-center gap-1 lg:hidden md:flex">{visibleNav.map(([to, label]) => <Link key={to} to={to} activeOptions={{ exact: to === '/' }} className="rounded-lg px-2.5 py-1.5 text-xs font-medium text-slate-300 transition hover:bg-white/5 hover:text-white" activeProps={{ className: 'bg-white/10 text-white' }}>{label}</Link>)}</nav>
         <div className="hidden items-center gap-3 sm:flex">
-          <div className="hidden items-center gap-2 rounded-full border border-emerald-400/20 bg-emerald-400/10 px-2.5 py-1 text-[11px] font-semibold text-emerald-200 xl:flex"><BadgeCheck size={13}/>Human decision required</div>
+          <label className="hidden items-center gap-2 rounded-lg border border-white/10 bg-white/[0.06] px-2.5 py-1.5 lg:flex">
+            <span className="text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-400">Viewing as</span>
+            <select
+              aria-label="Viewing as role"
+              value={role}
+              onChange={e => setRole(e.target.value as DemoRole)}
+              className="bg-transparent text-xs font-semibold text-white outline-none"
+            >
+              <option className="text-slate-900" value="investigator">Investigator</option>
+              <option className="text-slate-900" value="auditor">Compliance / OIG Auditor</option>
+            </select>
+          </label>
+          <div className={`hidden items-center gap-2 rounded-full px-2.5 py-1 text-[11px] font-semibold xl:flex ${isReadOnly ? 'border border-amber-300/25 bg-amber-300/10 text-amber-100' : 'border border-emerald-400/20 bg-emerald-400/10 text-emerald-200'}`}>
+            <BadgeCheck size={13}/>{isReadOnly ? 'Read-only audit view' : 'Human decision required'}
+          </div>
           <div className="flex items-center gap-2 border-l border-white/10 pl-3">
             <CircleUserRound size={24} className="text-slate-400"/>
-            <div className="hidden leading-tight lg:block"><div className="text-xs font-semibold text-slate-200">Demo Investigator</div><div className="text-[10px] text-slate-500">Program Integrity</div></div>
+            <div className="hidden leading-tight lg:block"><div className="text-xs font-semibold text-slate-200">{roleLabel}</div><div className="text-[10px] text-slate-500">{isReadOnly ? 'Compliance / OIG' : 'Program Integrity'}</div></div>
           </div>
         </div>
       </div>
@@ -92,8 +116,8 @@ export function Shell({ children }: { children: ReactNode }) {
 
     <div className="mx-auto flex max-w-[1680px]">
       <aside className="hidden w-64 shrink-0 border-r border-slate-800 bg-[#101d38] px-3.5 py-5 text-slate-200 lg:flex lg:min-h-[calc(100vh-65px)] lg:flex-col">
-        <div className="px-2 pb-2 text-[10px] font-bold uppercase tracking-[0.14em] text-slate-500">Investigation workspace</div>
-        <nav className="space-y-1">{nav.map(([to, label, Icon, note]) => (
+        <div className="px-2 pb-2 text-[10px] font-bold uppercase tracking-[0.14em] text-slate-500">{isReadOnly ? 'Audit reconstruction' : 'Investigation workspace'}</div>
+        <nav className="space-y-1">{visibleNav.map(([to, label, Icon, note]) => (
           <Link
             key={to}
             to={to}
@@ -111,10 +135,13 @@ export function Shell({ children }: { children: ReactNode }) {
             <div className="mb-2 flex items-center gap-2 text-[10px] font-bold uppercase tracking-[0.12em] text-slate-400"><Database size={13}/>Environment</div>
             <div className="flex items-center justify-between text-xs"><span className="text-slate-400">Data mode</span><span className="font-semibold text-slate-200">Synthetic</span></div>
             <div className="mt-1.5 flex items-center justify-between text-xs"><span className="text-slate-400">AI provider</span><span className="font-semibold text-slate-200">Grounded mock</span></div>
+            <div className="mt-1.5 flex items-center justify-between text-xs"><span className="text-slate-400">Access role</span><span className="font-semibold text-slate-200">{roleLabel}</span></div>
           </div>
           <div className="rounded-xl border border-blue-400/15 bg-blue-400/[0.06] p-3 text-[11px] leading-5 text-slate-400">
             <div className="mb-1 font-semibold text-slate-300">Governance guardrail</div>
-            Risk scores prioritize workload only. They do not represent probability of fraud and never trigger disposition.
+            {isReadOnly
+              ? 'Auditor mode is read-only. Copilot, memo editing, disposition, and administration controls are unavailable.'
+              : 'Risk scores prioritize workload only. They do not represent probability of fraud and never trigger disposition.'}
           </div>
         </div>
       </aside>
@@ -140,6 +167,9 @@ export function Filter({label,value,onChange,options}:{label:string;value:string
 }
 
 export function Panel({title,subtitle,icon,right,children,tone='default'}:{title:string;subtitle?:string;icon:ReactNode;right?:ReactNode;children:ReactNode;tone?:'default'|'ai'}) {
+  const { role } = useDemoRole();
+  if (role === 'auditor' && ['Fraud Copilot', 'Draft Investigation Memo', 'Disposition'].includes(title)) return null;
+
   return <section className={`card overflow-hidden ${tone === 'ai' ? 'border-blue-200/90' : ''}`}>
     <div className={`flex min-h-12 items-center justify-between gap-3 border-b px-4 py-3 ${tone === 'ai' ? 'border-blue-100 bg-blue-50/70' : 'border-slate-100 bg-white'}`}>
       <div className="flex min-w-0 items-center gap-2.5"><span className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-lg ${tone === 'ai' ? 'bg-blue-100 text-blue-700' : 'bg-slate-100 text-slate-600'}`}>{icon}</span><div className="min-w-0"><h2 className="truncate text-sm font-semibold tracking-[-0.01em] text-slate-900">{title}</h2>{subtitle && <div className="mt-0.5 truncate text-[11px] text-slate-500">{subtitle}</div>}</div></div>
